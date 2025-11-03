@@ -1,55 +1,114 @@
+
 # Projeto de Gestão da Mottu
 
 📌 Nota: Projeto desenvolvido para fins acadêmicos na disciplina de Advanced Business Development with .NET
 
-Este é um sistema desenvolvido em ASP.NET Core Minimal API para o cadastro e gerenciamento de motos, funcionários e filiais da Mottu.
+Este sistema foi desenvolvido em ASP.NET Core Minimal API com o objetivo de centralizar o cadastro e gerenciamento de filiais, motos e funcionários da Mottu — permitindo operações completas de CRUD (criação, leitura, atualização e exclusão) de forma leve e padronizada.
 
-A aplicação permite realizar CRUD completo (criação, listagem, edição e exclusão) para todas as entidades do domínio, garantindo controle centralizado e eficiente das informações.
+A aplicação evoluiu significativamente em relação à sua primeira versão, incorporando novos recursos técnicos e boas práticas de arquitetura.
 
-Além disso, conta com recursos de versionamento de API, suporte a idempotência, HealthChecks e Rate Limiting, proporcionando maior confiabilidade, estabilidade e padronização para o consumo dos serviços.
+Abaixo estão destacados os componentes originais do projeto e as melhorias implementadas nesta nova versão:
+
+🧩 **Recursos Existentes**
+
+Na primeira versão, o foco foi consolidar a base estrutural da aplicação, garantindo estabilidade e boas práticas essenciais:
+- 💾 Idempotência nas requisições POST, evitando duplicações acidentais.
+- 🔁 Versionamento básico (v1), com suporte a endpoints organizados por grupo.
+- ❤️ HealthChecks integrados ao banco Oracle, assegurando monitoramento e disponibilidade do sistema.
+
+🚀 **Novos Recursos e Melhorias**
+
+Nesta nova etapa, o sistema foi aprimorado com novas funcionalidades e aprimoramentos de segurança, testes e versionamento:
+- 🧠 Predição de custos de manutenção de motos utilizando ML.NET, considerando quilometragem, tempo de uso e custo histórico.
+- 🔁 Versionamento completo (v2) com utilização de headers (X-Api-Version) para selecionar a versão desejada e acessar endpoints atualizados.
+- 🔒 Autenticação via API Key, exigida em todas as requisições, fortalecendo a segurança e controle de acesso.
+- 🧪 Testes unitários e de integração para endpoints críticos (GET ALL, POST, DELETE de Filiais e POST de predição ML), garantindo maior qualidade e previsibilidade da aplicação.
 
 ## Índice
-
 - [Integrantes](#integrantes)
-- [Justificativas da Arquitetura](#justificativas-da-arquitetura)
+- [Justificativas da Arquitetura](#justificativa-da-arquitetura)
 - [Funcionalidades](#funcionalidades)
 - [Como Rodar o Projeto](#como-rodar-o-projeto)
-- [Efetuar Testes no Programa](#efetuar-testes-no-programa)
+- [Efetuando Testes no Sistema](#efetuando-testes-no-sistema)
 - [Fontes](#fontes)
 
 ## Integrantes
+| Turma |    RM    |     Nome Completo     |
+|:------|:--------:|:---------------------:|
+| 2TDSB | RM555679 | Lavinia Soo Hyun Park |
+| 2TDSB | RM559123 | Caroline de Oliveira  |
+| 2TDSB | RM554473 | Giulia Corrêa Camillo |
 
-RM555679 - Lavinia Soo Hyun Park
+## Justificativa da Arquitetura
+A aplicação foi construída com base em uma estrutura **inspirada na Clean Architecture**, dividida em camadas independentes que garantem baixo acoplamento e alta coesão:
 
-## Justificativas da Arquitetura
+- **API Layer (`Endpoints/`)** → Interface pública da aplicação, responsável por expor os endpoints HTTP e agrupar operações por recurso, além de possuir validações básicas.
+- **Domain Layer (`Models/`)** → Define as entidades principais (Filial, Moto, Funcionário) e suas propriedades.
+- **Infrastructure Layer (`Infrastructure/`)** → Implementa a comunicação com o banco Oracle via Entity Framework Core e gerencia as migrations.
+- **External Services** → Inclui o modelo de predição de manutenção via ML.NET e o monitoramento de disponibilidade via HealthChecks.
+- **Test Layer (`ManagementApp.Tests/`)** → Projeto separado para execução de testes automatizados com xUnit e WebApplicationFactory.
+> 🔍 **Observação:**  
+> A aplicação adota uma estrutura simples, onde as validações básicas são realizadas diretamente nos endpoints, uma vez que não há interface de usuário nem lógica de negócio complexa.  
+> A camada de infraestrutura concentra os middlewares e configurações globais (API Key, HealthChecks, Scalar, Versionamento), mantidas em arquivos auxiliares dentro de `Infrastructure/`, garantindo um `Program.cs` mais limpo e organizado.
 
-A aplicação utiliza ASP.NET Core Minimal API por ser mais leve e adequada para CRUDs simples. O Entity Framework Core com Oracle facilita o mapeamento objeto-relacional e garante compatibilidade com o ambiente corporativo. Além disso, a separação em camadas inspirada na Clean Architecture melhora a manutenção e evolução do sistema. Recursos como versionamento de API, idempotência, healthchecks e rate limiting foram adotados por seguirem boas práticas de mercado para aplicações mais seguras e resilientes.
+
+O diagrama abaixo apresenta uma visão de alto nível da arquitetura e das interações entre suas camadas:
+```mermaid
+C4Context
+title Diagrama C4 - Gestão da Mottu (ManagementApp)
+
+Person(usu, "Usuário / API Client", "Insomnia, Postman ou sistema consumidor")
+System_Boundary(api, "ManagementApp API (.NET 9)") {
+    Container(api_v1, "API v1", "ASP.NET Core Minimal API", "CRUD de Filiais, Motos e Funcionários")
+    Container(api_v2, "API v2", "ASP.NET Core Minimal API", "Predição de custos de manutenção e endpoints aprimorados")
+    Container_Ext(mlnet, "Serviço de Predição ML.NET", "Modelo treinado em C#", "Recebe dados e retorna custo estimado de manutenção")
+    ContainerDb(db, "Banco de Dados Oracle", "Oracle XE / EF Core", "Armazena Filiais, Motos e Funcionários")
+    Container(security, "API Key Handler", "Middleware .NET", "Valida chaves de acesso em todas as requisições")
+    Container_Ext(tests, "xUnit Test Runner", "xUnit + WebApplicationFactory", "Executa testes automatizados sobre os endpoints principais")
+}
+
+Rel(usu, api_v1, "Consome endpoints REST (v1)")
+Rel(usu, api_v2, "Consome endpoints REST (v2)")
+Rel(api_v2, mlnet, "Envia dados de motos para predição de manutenção")
+Rel(api_v1, db, "Lê e grava dados (EF Core)")
+Rel(api_v2, db, "Lê e grava dados (EF Core)")
+Rel(api_v1, security, "Valida API Key")
+Rel(api_v2, security, "Valida API Key")
+Rel(tests, api_v1, "Executa testes de integração")
+Rel(tests, api_v2, "Executa testes de integração")
+```
 
 ## Funcionalidades
-
-- Cadastro de filiais, motos e funcionários
-- Integração com o banco Oracle utilizando Entity Framework Core
-- Documentação da API interativa gerada com Scalar (OpenAPI)
-- Versionamento de API para suportar evolução e compatibilidade entre versões
-- Idempotência na requisição de Cadastro para evitar operações duplicadas acidentais
-- HealthChecks e monitoramento do banco Oracle para verificar disponibilidade
-- Rate Limiting para controle de consumo e proteção contra sobrecarga
-- Relacionamentos entre entidades (ex.: motos vinculadas a uma filial, funcionário associado a filial)
+- Cadastro completo de **filiais**, **motos** e **funcionários** (CRUD).
+- Integração com o banco **Oracle** utilizando **Entity Framework Core**.
+- Documentação da API interativa gerada automaticamente com **Scalar (OpenAPI)**.
+- **Versionamento de API (v1 e v2)** com suporte a headers `X-Api-Version` para seleção de versão.
+- **Idempotência** nas requisições `POST`, evitando operações duplicadas acidentais.
+- **Autenticação via API Key**, exigida em todas as requisições da API.
+- **Predição de custos de manutenção de motos** utilizando **ML.NET**, com base em quilometragem, tempo de uso e custo histórico.
+- **HealthChecks** e monitoramento da conexão com o banco Oracle, garantindo disponibilidade e estabilidade.
+- **Relacionamentos entre entidades** (ex.: motos vinculadas a uma filial; funcionário associado a uma filial).
+- **Testes automatizados** com **xUnit** e **WebApplicationFactory** para endpoints principais.
 
 ## Como Rodar o Projeto
+> ⚠️ **Importante:**  
+> Clone este repositório antes de tudo!
+> ```bash
+> git clone [link-do-repositorio]
+> ```
+> Escolha a pasta desejada e abra o projeto na sua IDE de preferência
+---
+### 📜 1. Requisitos
 
-**IMPORTANTE**
+| Ferramenta | Descrição | Download |
+|-------------|------------|-----------|
+|**.NET SDK 9.0** | Framework necessário para compilar e executar o projeto | [Baixar .NET SDK](https://dotnet.microsoft.com/en-us/download) |
+|**Oracle XE** | Banco de dados local (ou utilize o da instituição) | [Baixar Oracle XE](https://www.oracle.com/database/technologies/appdev/xe.html) |
+|**IDE** | Recomendado: Visual Studio, Rider ou VS Code | — |
+|**API Client** | Testes realizados com **Insomnia**, mas funciona também no **Postman** ou outro de sua preferência | — |
 
-Clone o repositório e dê `git clone [link repositorio]` na pasta desejada para poder rodá-lo em sua IDE
-
-### 1. Requisitos
-
-- .NET SDK 9.0 instalado (https://dotnet.microsoft.com/en-us/download)
-- Oracle XE local ou acesso ao banco da sua instituição
-- IDE: Visual Studio ou Rider (ou VS Code)
-- API Client: Insomnia (utilizado nesse projeto), Postman ou outro de sua preferência
-
-### 2. Configuração da conexão com o Banco de Dados
+---
+### 🗄️ 2. Configuração da conexão com o Banco de Dados
 
 No arquivo `appsettings.json`, configure sua conexão Oracle:
 
@@ -59,174 +118,182 @@ No arquivo `appsettings.json`, configure sua conexão Oracle:
   }
 ```
 
-**Os campos que precisam ser preenchidos estão definidos por colchetes**
+> Substitua os valores entre colchetes `[ ]` conforme suas credenciais Oracle
 
-### 3. Executando o Projeto (Utilizando o terminal)
+### 🧠 **3. Executando o Projeto (CLI Mode)**
 
-1. Restaure os pacotes
+> 🖥️ Execute os comandos abaixo na raiz do projeto:
 
-```
+```bash
+# 1. Restaurar dependências
 dotnet restore
+
+# 2. Aplicar migrations (cria as tabelas no Oracle)
+ dotnet ef database update --project ManagementApp/ManagementApp.csproj 
+
+# 3. Iniciar o servidor
+dotnet run --project ManagementApp/ManagementApp.csproj
 ```
 
-2. Rode as migrations (ele irá criar automaticamente as tabelas no banco de dados)
+> 🔗 **URL gerada:** copie a exibida no console (exemplo: `http://localhost:5011`)
 
-```
-dotnet ef database update
-```
+## **Efetuando Testes no Sistema**
 
-3. Inicie o servidor
+### Visão Geral dos Endpoints
 
-```
-dotnet run
-```
+Abra a URL gerada pelo .NET e acesse o Scalar: `http://localhost:5011/scalar`
 
-4. Copie o link da URL gerado pelo .NET (ex.: http://localhost:5011)
-
-## Efetuar testes no programa
-
-Vamos primeiro ter uma visão geral dos endpoints do projeto.
-
-Cole a URL gerada pelo .NET no navegador juntamente com o caminho do Scalar (http://localhost:5011/scalar). Irá aparecer a seguinte página:
+> 💡 **Dica:** No Scalar você pode visualizar todos os endpoints, métodos disponíveis e exemplos de requisição/retorno para cada entidade (Filiais, Motos, Funcionários e Predição de Custos)
 
 ![Scalar](/ManagementApp/docs/images/SCALAR.png)
 
-Pelo Scalar, você poderá visualizar todos os endpoints disponíveis para cada tabela existente no projeto, incluindo descrições de o que cada método faz, e quais são os tipos de dados aceitos por cada atributo.
+---
 
-### 1. Verificar saúde do projeto / banco
+### 1. Verificar Saúde do Sistema
 
-Aqui nós vamos utilizar o Health Check para ver se a aplicação está rodando corretamente e se o banco de dados Oracle está acessível. Ele funciona como um check-up rápido do sistema, mostrando se os principais serviços estão no ar.
-
-```
-http://localhost:5011/health
-```
+O endpoint de Health Check confirma se a aplicação e o banco Oracle estão ativos: `http://localhost:5011/api/v2/health`
 
 ![Health Resposta](/ManagementApp/docs/images/HEALTH-CHECK.png)
 
-**Agora iremos para o CRUD das tabelas, utilizaremos como base os prints da tabela "Filial", porém em cada tópico terá dados exemplos prontos e instruções de cada requisição**
+> ✅ Retorna “Healthy” quando o servidor e o banco estão funcionando corretamente
 
-### 2. Ver a lista de dados cadastrados em cada tabela (GET)
+---
 
-Assim que você efetuou a Migration, o projeto ja subiu **10 dados prontos** para o Banco. Iremos primeiro visualizar eles.
+### 2. Executar Testes Unitários
 
-Para isto, vamos usar a URL http://localhost:5011/api/v1/filiais?PageNumber=1&PageSize=2
+Após verificar que o servidor está saudável, você pode rodar os **testes unitários** para validar a lógica principal da aplicação.
 
-**É crucial manter o caminho /api/v1 para todas as operações que formos fazer!**
+> 💡 **Os testes foram desenvolvidos utilizando o framework xUnit**, cobrindo os principais fluxos de CRUD e validações internas.
 
-Dados Alteráveis:
-- ```/api/v1/[tabela]``` = filiais, motos ou funcionarios
-- PageNumber = use por padrao 1 (para começar na primeira pagina)
-- PageSize = escolha a quantidade de registros que você quer visualizar por página
+#### ▶️ Rodando os testes
+Na raiz do projeto, execute o comando abaixo:
 
-![Resposta do Metodo GETALL de Filiais](/docs/images/FILIAIS-GETALL-PAGINATED.png)
-
-Como podemos ver na imagem acima, o endpoint retorna os dados utilizando **paginação**.
-Isso significa que:
-- Os registros são divididos em páginas.
-- A quantidade de registros na pagina é o mesmo que o valor que definimos em PageSize
-- A resposta também inclui informações adicionais, como links para próxima página, página anterior, etc.
-
-### 3. Listar um item pelo ID (GET)
-
-Utilize a URL: http://localhost:5011/api/v1/filiais/{id}
-
-**Não esqueça de pegar o ID desejado acessando o GET ALL**
-
-![Resposta do metodo GETBYID de Filiais](/docs/images/FILIAIS-GETBYID-200.png)
-
-No resultado do GET by Id, além dos dados do registro solicitado, a resposta também traz links adicionais que indicam quais ações podem ser realizadas a partir daquele recurso.
-
-Isso segue o conceito de HATEOAS (Hypermedia as the Engine of Application State), onde a própria API guia o usuário sobre os próximos passos possíveis.
-
-No caso das filiais, por exemplo, a resposta inclui links para:
-- GET by CNPJ da mesma filial
-- PUT (atualizar a filial)
-- DELETE (encerrar a filial)
-
-Esses links facilitam a navegação na API, tornando mais claro quais operações estão disponíveis sem precisar consultar separadamente a documentação.
-
-***Todas as 3 tabelas possuem uma busca de registro específica (CNPJ, CPF e PLACA), para saber como testar veja a URL pelo HATEOAS do GETBYID de cada um ou acessando o Scalar***
-
-### 4. Cadastrar um novo registro (POST)
-
-Utilize a URL: http://localhost:5011/api/v1/filiais
-
-No POST teremos um mini passo-a-passo:
-
-1. Adicione na aba Headers do API Client = ```Idempotency-Key: 3b8d0c71-4100-4b47-9324-32c0e91eab49```
-
-**Essa Key deverá ser mudada toda vez que você for fazer um novo POST, para isso basta mudar o numero final da Key**
-
-2. Acesse a aba Body, selecione tipo de dado JSON, e insira os dados a serem cadastrados
-
-Deixarei como exemplo 1 registro novo para cada tabela:
-
-FILIAIS
+```bash
+dotnet test
 ```
+
+Isso irá:
+- Restaurar automaticamente os pacotes necessários;
+- Compilar o projeto e os testes;
+- Executar todos os casos de teste definidos na pasta `ManagementApp.Tests`.
+
+#### 📊 Resultados esperados
+Ao final da execução, o terminal exibirá um resumo semelhante a:
+
+```
+Resumo do teste: total: 4; falhou: 0; bem-sucedido: 4; ignorado: 0; duração: 125,7s
+```
+> ✅ Se todos os testes passarem, significa que a lógica principal da API está funcionando conforme o esperado
+
+### (Opcional) Executar Testes Manuais (API Client)
+
+Nesta etapa, você pode testar os endpoints manualmente utilizando **Insomnia** ou **Postman**, seguindo o mesmo comportamento dos testes automatizados.
+
+> 💡 **As requisições abaixo seguem o **versionamento v2** (`/api/v2`) e exigem os headers `X-API-Key` (utilize "pf1779" ou "rm555679") e `X-Api-Version`**
+
+#### 1. **Verificar Registros Cadastrados (GET)**
+
+Assim que a Migration for executada, o sistema já cria **10 registros iniciais** em cada tabela.  
+Para listar, use: 
+
+```
+GET http://localhost:5011/api/v2/filiais?PageNumber=1&PageSize=2
+```
+
+> ⚙️ **Parâmetros:**
+> - `PageNumber` = número da página (use `1` por padrão)
+> - `PageSize` = quantidade de registros exibidos por página
+
+📸 *Exemplo de headers e resposta paginada:*  
+![GET Headers](/ManagementApp/docs/images/GETALL-FILIAIS-HEADERS.png)
+![GET Response](/ManagementApp/docs/images/GETALL-FILIAIS-RESPONSE.png)
+
+> 📑 O retorno é paginado e segue o padrão HATEOAS, incluindo links para navegação entre páginas e ações disponíveis.
+
+---
+
+#### 2. Buscar Registro Específico (GET by ID)
+```
+GET http://localhost:5011/api/v2/filiais/{id}
+```
+> 🔎 Substitua `{id}` por um ID retornado no GET anterior
+
+📸 *Exemplo de headers e resposta com HATEOAS:* 
+![GETBYID HEADERS](/ManagementApp/docs/images/GETBYID-HEADERS.png)
+![GETBYID RESPONSE](/ManagementApp/docs/images/GETBYID-RESPONSE.png)
+
+💡 **Dica:** O HATEOAS indica endpoints relacionados — como **GET by CNPJ**, **PUT** e **DELETE** — para facilitar a navegação.
+
+---
+
+#### 3. Cadastrar Novo Registro (POST)
+```
+POST http://localhost:5011/api/v2/filiais
+```
+> 🔑 Adicione o header:  
+> `Idempotency-Key: <GUID único>`
+
+📸 *Headers de exemplo:*  
+![POST Headers](/ManagementApp/docs/images/POST-HEADERS.png)
+
+🧩 *Exemplo de corpo JSON*
+```json
 {
 	"nome": "Filial Lins",
-	"cnpj": "23897364000123",
-	"telefone": "(11) 4002-1010",
-	"dataAbertura": "2024-09-19T00:00:00",
+	"cnpj": "45839432000145",
+	"telefone": "(11) 3333-1089",
+	"dataAbertura": "2017-09-02T00:00:00",
 	"dataEncerramento": null,
 	"endereco": {
-		"cep": "01152-000",
+		"cep": "01538-001",
 		"logradouro": "Av. Lins de Vasconcelos",
-		"numero": "10",
+		"numero": "1222",
 		"complemento": null,
-		"bairro": "Vila Mariana",
+		"bairro": "Aclimação",
 		"cidade": "São Paulo",
 		"uf": "SP",
 		"pais": "Brasil"
 	}
 }
 ```
+📸 *Exemplo de resposta 201 (criação bem-sucedida):*
+![POST Response](/ManagementApp/docs/images/POST-RESPONSE.png)
 
-MOTOS
+> ⚠️ ***Para Motos e Funcionários, inclua o campo `filialId` vinculado a uma filial existente***
+
+---
+
+#### 4. Atualizar Registro Existente (PUT)
 ```
-{
-	"placa": "LIN3S77",
-	"marca": "Fiap",
-	"modelo": "TI 456",
-	"ano": 2024,
-	"status": "disponivel",
-	"filialId": "[ID DA FILIAL DESEJADA]"
-}
+PUT http://localhost:5011/api/v2/filiais/{id}
 ```
+> ✏️ Copie o JSON atual e altere apenas os campos necessários (**não inclua o id na requisição**)
 
-FUNCIONARIOS
+📸 *Exemplo de corpo e resposta:*
+![PUT Headers](/ManagementApp/docs/images/PUT-HEADERS.png)
+![PUT Response](/ManagementApp/docs/images/PUT-RESPONSE.png)
+
+---
+
+#### 5. Encerrar (Deletar) Registro (DELETE)
 ```
-{
-	"nomeCompleto": "Joao Lins de Vasconcelos",
-	"cpf": "57689375910",
-	"cargo": "gestor",
-	"ativo": true,
-	"filialId": "[ID DA FILIAL DESEJADA]"
-}
+DELETE http://localhost:5011/api/v2/filiais/{id}/encerrar
 ```
+> 🧹 Para Filiais, o endpoint específico de encerramento é `/encerrar`.
+Consulte o Scalar para detalhes de cada entidade.
 
-***Para as tabelas MOTO e FUNCIONARIO, é obrigatório cadastrar um registro com o ID de uma FILIAL ja existente.***
+📸 *Exemplo de resposta de encerramento:*
+![DELETE Headers](/ManagementApp/docs/images/DELETE-HEADERS.png)
+![DELETE Response](/ManagementApp/docs/images/DELETE-RESPONSE.png)
 
-3. Envie os dados
+> 💡 O DELETE de Filiais apenas encerra a empresa inserindo a data de encerramento, o método não apaga
+a filial em si.
 
-![Resposta do metodo POST de Filiais](/ManagementApp/docs/images/FILIAIS-POST-201.png)
+**✅ Resumo:**
 
-
-### 5. Atualizar um Registro (PUT)
-
-Utilize a URL: http://localhost:5011/api/v1/filiais/{id}
-
-Para o metodo PUT, copie todos os atributos do registro (juntamente com os dados originais), e mude os que você deseja atualizar **(não inclua o ID do proprio registro, inicie a partir do segundo atributo)**
-
-![Resposta do metodo PUT de Filiais](/ManagementApp/docs/images/FILIAIS-PUT-200.png)
-
-### 6. Deletar um Registro (DELETE)
-
-Utilize a URL: http://localhost:5011/api/v1/filiais/{id}
-
-**OBS.: para a tabela FILIAIS, o endereço URL para deletar inclui ```/encerrar```, para mais detalhes consulte o Scalar**
-
-![Resposta do metodo DELETE de filial](/ManagementApp/docs/images/FILIAIS-DELETE-200.png)
+Esses testes manuais permitem verificar cada operação CRUD,
+validar cabeçalhos obrigatórios (`X-API-Key`, `Idempotency-Key`)
+e observar o comportamento da API conforme o versionamento v2.
 
 ## Fontes
 
