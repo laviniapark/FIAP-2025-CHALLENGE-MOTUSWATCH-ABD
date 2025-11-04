@@ -185,6 +185,8 @@ Resumo do teste: total: 4; falhou: 0; bem-sucedido: 4; ignorado: 0; duração: 1
 ```
 > ✅ Se todos os testes passarem, significa que a lógica principal da API está funcionando conforme o esperado
 
+---
+
 ### (Opcional) Executar Testes Manuais (API Client)
 
 Nesta etapa, você pode testar os endpoints manualmente utilizando **Insomnia** ou **Postman**, seguindo o mesmo comportamento dos testes automatizados.
